@@ -1015,7 +1015,7 @@ local function SetupBagTooltipAnchor()
     local origOnShow = GameTooltip:GetScript("OnShow")
     GameTooltip:SetScript("OnShow", function()
         if origOnShow then origOnShow() end
-        local owner = this:GetOwner()
+        local owner = this.GetOwner and this:GetOwner()  -- GetOwner absent in WoW 1.12 vanilla
         if owner then
             local ownerName = owner:GetName() or ""
             if string.find(ownerName, "^ContainerFrame%d+Item%d+") then
@@ -1237,7 +1237,7 @@ local function SetupBagTooltipAnchor()
     local origOnShow = GameTooltip:GetScript("OnShow")
     GameTooltip:SetScript("OnShow", function()
         if origOnShow then origOnShow() end
-        local owner = this:GetOwner()
+        local owner = this.GetOwner and this:GetOwner()  -- GetOwner absent in WoW 1.12 vanilla
         if owner then
             local ownerName = owner:GetName() or ""
             -- ContainerFrameNItemM  →  item slot inside a bag window
