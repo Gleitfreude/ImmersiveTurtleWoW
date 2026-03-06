@@ -1,0 +1,8 @@
+## Interface: 11200
+## Title: Immersive Turtle WoW
+## Notes: Versteckt das UI für ein immersiveres Erlebnis
+## Author: DeinName
+## Version: 1.0
+
+Bindings.xml
+ImmersiveTurtleWoW.lua
