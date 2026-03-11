@@ -1111,7 +1111,7 @@ FadeUI:SetScript("OnEvent", function()
                 -- Pull action bar down slightly from DragonFlight default (y=15)
                 if MainMenuBar then
                     MainMenuBar:ClearAllPoints()
-                    MainMenuBar:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 5)
+                    MainMenuBar:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 8)
                 end
 
                 -- Move player DEBUFF icons (curses, poisons, etc.) to just below the minimap.
