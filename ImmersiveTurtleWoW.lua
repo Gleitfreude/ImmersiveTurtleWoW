@@ -528,6 +528,9 @@ function FadeUI:CollectUIFrames()
     table.insert(UIFrames, PartyMemberFrame3)
     table.insert(UIFrames, PartyMemberFrame4)
 
+    -- Quest tracker
+    if QuestWatchFrame then table.insert(UIFrames, QuestWatchFrame) end
+
     -- Misc
     table.insert(UIFrames, CastingBarFrame)
 
@@ -1060,6 +1063,12 @@ FadeUI:SetScript("OnEvent", function()
                 if tDFbagMain then
                     tDFbagMain:ClearAllPoints()
                     tDFbagMain:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -5, 5)
+                end
+
+                -- Pull main action bar down so the lion end-caps sit flush at the screen edge.
+                if MainMenuBar then
+                    MainMenuBar:ClearAllPoints()
+                    MainMenuBar:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 0)
                 end
 
                 -- Move player DEBUFF icons (curses, poisons, etc.) to just below the minimap.
