@@ -731,7 +731,10 @@ function FadeUI:ShowCombatUI()
     end
 
     for _, frame in pairs(CombatFrames) do
-        if frame then self:FadeFrame(frame, fadeInAlpha) end
+        if frame then
+            frame:Show()
+            self:FadeFrame(frame, fadeInAlpha)
+        end
     end
 
     self:FindAndFadeActionBarFrames(fadeInAlpha)
