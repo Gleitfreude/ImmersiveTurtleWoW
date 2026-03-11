@@ -607,14 +607,8 @@ function FadeUI:CollectUIFrames()
     table.insert(UIFrames, ChatFrame6)
     table.insert(UIFrames, ChatFrame7)
 
-    -- Quest tracker
-    if QuestWatchFrame then
-        table.insert(UIFrames, QuestWatchFrame)
-        for i = 1, 15 do
-            local line = getglobal("QuestWatchLine"..i)
-            if line then table.insert(UIFrames, line) end
-        end
-    end
+    -- Quest tracker is handled explicitly (not via UIFrames) so that
+    -- Show()/SetAlpha() can be called reliably without animation conflicts.
 
     -- Cast bar text
     table.insert(UIFrames, CastingBarText)
@@ -742,6 +736,23 @@ function FadeUI:FadeFrame(frame, targetAlpha)
 end
 
 -- ============================================================
+-- Quest tracker visibility helper.
+-- Uses SetAlpha directly (no animation) to avoid timing conflicts
+-- with WoW's own WatchFrame_Update calls.
+-- ============================================================
+local function SetQuestTrackerVisible(visible)
+    if not QuestWatchFrame then return end
+    if visible then
+        QuestWatchFrame:Show()
+        QuestWatchFrame:SetAlpha(1)
+    else
+        QuestWatchFrame:SetAlpha(0)
+        -- Do NOT call Hide() — let WoW manage its own hide state.
+        -- SetAlpha(0) makes it invisible; Show() restores it when needed.
+    end
+end
+
+-- ============================================================
 -- Show ONLY combat-relevant frames.
 -- Called when entering combat or clicking a hostile target.
 -- Chat, minimap, bags, and micro-menu remain hidden.
@@ -771,14 +782,7 @@ function FadeUI:ShowCombatUI()
     self:UpdateBuffFrames()
 
     -- Quest tracker: show only if the setting allows it
-    if QuestWatchFrame then
-        if DB and DB.combatShowQuestTracker then
-            QuestWatchFrame:Show()
-            self:FadeFrame(QuestWatchFrame, fadeInAlpha)
-        else
-            self:FadeFrame(QuestWatchFrame, fadeOutAlpha)
-        end
-    end
+    SetQuestTrackerVisible(DB and DB.combatShowQuestTracker)
 
     -- Bag icons must stay hidden during combat
     local bagNames = {"tDFbagMain","tDFbag1","tDFbag2","tDFbag3","tDFbag4","tDFbagKeys","tDFbagArrow","tDFbagFreeSlots"}
@@ -802,7 +806,7 @@ function FadeUI:HideCombatUI()
     self:FindAndFadeActionBarFrames(fadeOutAlpha)
 
     if TargetFrame then self:FadeFrame(TargetFrame, fadeOutAlpha) end
-    if QuestWatchFrame then self:FadeFrame(QuestWatchFrame, fadeOutAlpha) end
+    SetQuestTrackerVisible(false)
 
     buffFrameAlpha = fadeOutAlpha
     self:UpdateBuffFrames()
@@ -832,11 +836,8 @@ function FadeUI:FadeAllUI(targetAlpha)
         if TargetFrame then self:FadeFrame(TargetFrame, targetAlpha) end
     end
 
-    -- Quest tracker fades with the full UI; Show() needed since WoW may have called Hide() on it
-    if QuestWatchFrame then
-        if targetAlpha == fadeInAlpha then QuestWatchFrame:Show() end
-        self:FadeFrame(QuestWatchFrame, targetAlpha)
-    end
+    -- Quest tracker fades with the full UI
+    SetQuestTrackerVisible(targetAlpha == fadeInAlpha)
 
     buffFrameAlpha = targetAlpha
     self:UpdateBuffFrames()
