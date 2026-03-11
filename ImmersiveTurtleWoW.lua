@@ -1169,18 +1169,33 @@ FadeUI:SetScript("OnEvent", function()
         end
 
     elseif event == "MERCHANT_SHOW" then
-        -- Vendor window opened: auto-open bags if UI is faded
         merchantOpen = true
-        if not uiVisible then
-            this:OpenBagsForMerchant()
+        -- Fade out UI for immersion, same as NPC dialog
+        if uiVisible or combatUIActive then
+            dialogAutoHid = true
+            dialogWasFullUI = uiVisible
+            if combatEndTimer then
+                combatEndTimer:SetScript("OnUpdate", nil)
+                combatEndTimer = nil
+            end
+            this:FadeAllUI(fadeOutAlpha)
         end
+        -- Auto-open bags so the player can trade
+        this:OpenBagsForMerchant()
 
     elseif event == "MERCHANT_CLOSED" then
-        -- Vendor window closed: close any bags we auto-opened
+        -- Close bags we opened, then restore UI state
         if merchantOpen then
             this:CloseMerchantBags()
         end
         merchantOpen = false
+        if dialogAutoHid then
+            dialogAutoHid = false
+            if dialogWasFullUI then
+                this:FadeAllUI(fadeInAlpha)
+            end
+            dialogWasFullUI = false
+        end
 
     end
 end)
@@ -1247,6 +1262,22 @@ local function SetupBagTooltipAnchor()
             end
         end
     end)
+end
+
+-- ============================================================
+-- Keybinding display strings (shown in the WoW keybinding menu)
+-- ============================================================
+BINDING_HEADER_IMMERSIVE_UI   = "Immersive UI"
+BINDING_NAME_TOGGLE_FULL_UI   = "Toggle UI Fade"
+BINDING_NAME_TOGGLE_MINIMAP_ONLY = "Toggle Minimap"
+
+-- Global wrappers called by bindings.xml
+function ImmersiveUI_ToggleFullUI()
+    FadeUI:ToggleUI()
+end
+
+function ImmersiveUI_ToggleMinimap()
+    FadeUI:ToggleMinimap()
 end
 
 -- ============================================================

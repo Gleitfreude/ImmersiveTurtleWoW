@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Bindings>
-    <Binding name="TOGGLE_FULL_UI" command="ToggleFullUI"/>
-    <Binding name="TOGGLE_MINIMAP_ONLY" command="ToggleMinimapOnly"/>
+    <Binding name="TOGGLE_FULL_UI" header="IMMERSIVE_UI">
+        ImmersiveUI_ToggleFullUI()
+    </Binding>
+    <Binding name="TOGGLE_MINIMAP_ONLY">
+        ImmersiveUI_ToggleMinimap()
+    </Binding>
 </Bindings>
