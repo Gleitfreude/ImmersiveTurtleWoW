@@ -1458,29 +1458,38 @@ end
 -- Minimap button
 -- ============================================================
 function CreateMinimapButton()
-    local btn = CreateFrame("Frame", "ImmersiveUIMinimapButton", UIParent)
-    btn:SetWidth(22)
-    btn:SetHeight(22)
+    local btn = CreateFrame("Button", "ImmersiveUIMinimapButton", Minimap)
+    btn:SetWidth(31)
+    btn:SetHeight(31)
     btn:SetFrameStrata("MEDIUM")
     btn:SetFrameLevel(8)
 
-    -- Position just outside the minimap at the bottom-left angle
+    -- Position around the minimap edge at the bottom-left angle
     local angle = math.rad(220)
     local radius = 80
     btn:SetPoint("CENTER", Minimap, "CENTER",
         math.cos(angle) * radius, math.sin(angle) * radius)
 
-    local icon = btn:CreateTexture(nil, "BACKGROUND")
-    icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01")
-    icon:SetAllPoints()
+    -- Icon: FontString centered inside the ring
+    local icon = btn:CreateFontString(nil, "ARTWORK")
+    icon:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+    icon:SetText("|cFFFFCC00S|r")   -- "S" for Settings; readable in all 1.12 clients
+    icon:SetWidth(17)
+    icon:SetHeight(17)
+    icon:SetPoint("TOPLEFT", btn, "TOPLEFT", 7, -6)
+    icon:SetJustifyH("CENTER")
+    icon:SetJustifyV("MIDDLE")
 
+    -- Border ring: TOPLEFT at (0,0) — the ring is drawn in the texture's upper-left region
     local border = btn:CreateTexture(nil, "OVERLAY")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    border:SetWidth(54); border:SetHeight(54)
-    border:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    border:SetWidth(53)
+    border:SetHeight(53)
+    border:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
 
-    btn:EnableMouse(true)
-    btn:SetScript("OnMouseDown", function()
+    btn:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+    btn:SetScript("OnClick", function()
         if arg1 == "LeftButton" then
             ImmersiveUI_ToggleSettings()
         end
