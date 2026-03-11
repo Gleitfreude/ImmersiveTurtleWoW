@@ -830,41 +830,62 @@ end
 -- Fade just the minimap (minimap toggle keybind)
 -- ============================================================
 function FadeUI:FadeMinimap(targetAlpha)
+    minimapVisible = (targetAlpha == fadeInAlpha)
+
     if targetAlpha == fadeInAlpha then
-        self:ShowMinimap()
-    else
-        self:HideMinimap()
+        -- Reveal content BEFORE animating so it's present as frames fade in.
+        -- (MyCustomMinimap alpha is already 0 from the last HideMinimap/FadeMinimap call,
+        --  so FadeFrame below will animate cleanly from 0 → 1.)
+        if Minimap and Minimap.Show then Minimap:Show() end
+        for _, frameName in ipairs(MarkerElements) do
+            local f = getglobal(frameName)
+            if f then f:Show() end
+        end
+        if GameTimeFrame then GameTimeFrame:Show() end
+        if getglobal("BorderFrameForZoneText") then getglobal("BorderFrameForZoneText"):Show() end
+        for _, frameName in ipairs(MinimapFadeFrames) do
+            local f = getglobal(frameName)
+            if f then self:FadeFrame(f, fadeInAlpha) end
+        end
     end
 
-    -- Only fade the parent frame — its alpha cascades to all child textures
-    -- (borderTexture, background texture, etc.) automatically.
-    -- Fading child textures individually causes their own alpha to reach 0;
-    -- when the parent is later instantly restored the children stay dark → black box.
-    local dragonMinimapFrames = {"MyCustomMinimap","MyActualMinimap","BorderFrameForZoneText"}
+    -- Animate DragonFlight minimap parent frames (alpha cascades to child textures).
+    -- Do NOT set alpha directly here — that was killing the animation.
+    local dragonMinimapFrames = {"MyCustomMinimap", "MyActualMinimap", "BorderFrameForZoneText"}
     for _, frameName in ipairs(dragonMinimapFrames) do
         local frame = getglobal(frameName)
         if frame then self:FadeFrame(frame, targetAlpha) end
     end
 
-    if GameTimeFrame then
-        if targetAlpha == fadeOutAlpha then
-            GameTimeFrame:SetAlpha(fadeOutAlpha)
-            GameTimeFrame:Hide()
-        else
-            GameTimeFrame:SetAlpha(fadeInAlpha)
-            GameTimeFrame:Show()
-        end
-    end
+    if GameTimeFrame then self:FadeFrame(GameTimeFrame, targetAlpha) end
 
     local chatButtons = {"ChatFrameMenuButton","ChatFrameUpButton","ChatFrameDownButton","ChatFrameBottomButton"}
     for _, n in ipairs(chatButtons) do
         local b = getglobal(n)
-        if b then
-            self:FadeFrame(b, uiVisible and targetAlpha or fadeOutAlpha)
-        end
+        if b then self:FadeFrame(b, uiVisible and targetAlpha or fadeOutAlpha) end
     end
 
-    minimapVisible = (targetAlpha == fadeInAlpha)
+    if targetAlpha == fadeOutAlpha then
+        -- Hide content AFTER the fade-out animation finishes.
+        for _, frameName in ipairs(MinimapFadeFrames) do
+            local f = getglobal(frameName)
+            if f then self:FadeFrame(f, fadeOutAlpha) end
+        end
+        local doneTimer = CreateFrame("Frame")
+        doneTimer.elapsed = 0
+        doneTimer:SetScript("OnUpdate", function()
+            this.elapsed = this.elapsed + arg1
+            if this.elapsed >= fadeSpeed + 0.05 then
+                if Minimap and Minimap.Hide then Minimap:Hide() end
+                for _, frameName in ipairs(MarkerElements) do
+                    local f = getglobal(frameName)
+                    if f then f:Hide() end
+                end
+                if GameTimeFrame then GameTimeFrame:Hide() end
+                this:SetScript("OnUpdate", nil)
+            end
+        end)
+    end
 
     if targetAlpha == fadeInAlpha then
         if minimapTimer then
