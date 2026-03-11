@@ -2,7 +2,8 @@
 ## Title: Immersive Turtle WoW
 ## Notes: Versteckt das UI für ein immersiveres Erlebnis
 ## Author: DeinName
-## Version: 1.0
+## Version: 1.2
+## SavedVariables: ImmersiveTurtleWoW_DB
 
 Bindings.xml
 ImmersiveTurtleWoW.lua

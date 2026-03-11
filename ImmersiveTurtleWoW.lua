@@ -15,6 +15,34 @@ local CombatFrames = {}         -- Subset: shown during combat-only mode
 local minimapAutoHideTime = 5.0 -- Time in seconds before minimap auto-hides
 local combatFadeDelay = 10.0    -- Time in seconds before UI fades after combat
 
+-- SavedVariables handle (set on PLAYER_LOGIN)
+local DB
+
+local DB_DEFAULTS = {
+    combatShowQuestTracker = true,   -- show quest tracker during combat
+    autoFadeOnDialog       = true,   -- auto-fade when NPC dialog/quest opens
+    autoFadeOnVendor       = true,   -- auto-fade at vendor / banker / AH
+    fadeSpeed              = 0.5,    -- fade animation duration (seconds)
+    combatFadeDelay        = 10.0,   -- seconds after combat before fading out
+    minimapHideDelay       = 5.0,    -- seconds before minimap auto-hides
+}
+
+local function LoadDB()
+    if not ImmersiveTurtleWoW_DB then ImmersiveTurtleWoW_DB = {} end
+    for k, v in pairs(DB_DEFAULTS) do
+        if ImmersiveTurtleWoW_DB[k] == nil then
+            ImmersiveTurtleWoW_DB[k] = v
+        end
+    end
+    DB = ImmersiveTurtleWoW_DB
+end
+
+local function ApplySettings()
+    fadeSpeed           = DB.fadeSpeed
+    minimapAutoHideTime = DB.minimapHideDelay
+    combatFadeDelay     = DB.combatFadeDelay
+end
+
 -- Mode tracking for partial UI states
 local combatUIActive = false    -- true when combat-only UI is displayed
 local merchantOpen = false      -- true when vendor window is open
@@ -396,6 +424,7 @@ function FadeUI:AddDragonUISupport()
             if string.find(parentName, "^MyCustomMinimap") then return end
             if string.find(parentName, "^MyActualMinimap") then return end
             if string.find(parentName, "^MirrorTimerFrame") then return end
+            if string.find(parentName, "^ImmersiveUI") then return end
         end
 
         local regions = {parent:GetRegions()}
@@ -741,6 +770,16 @@ function FadeUI:ShowCombatUI()
     buffFrameAlpha = fadeInAlpha
     self:UpdateBuffFrames()
 
+    -- Quest tracker: show only if the setting allows it
+    if QuestWatchFrame then
+        if DB and DB.combatShowQuestTracker then
+            QuestWatchFrame:Show()
+            self:FadeFrame(QuestWatchFrame, fadeInAlpha)
+        else
+            self:FadeFrame(QuestWatchFrame, fadeOutAlpha)
+        end
+    end
+
     -- Bag icons must stay hidden during combat
     local bagNames = {"tDFbagMain","tDFbag1","tDFbag2","tDFbag3","tDFbag4","tDFbagKeys","tDFbagArrow","tDFbagFreeSlots"}
     for _, n in ipairs(bagNames) do
@@ -763,6 +802,7 @@ function FadeUI:HideCombatUI()
     self:FindAndFadeActionBarFrames(fadeOutAlpha)
 
     if TargetFrame then self:FadeFrame(TargetFrame, fadeOutAlpha) end
+    if QuestWatchFrame then self:FadeFrame(QuestWatchFrame, fadeOutAlpha) end
 
     buffFrameAlpha = fadeOutAlpha
     self:UpdateBuffFrames()
@@ -790,6 +830,12 @@ function FadeUI:FadeAllUI(targetAlpha)
     -- Target frame
     if not UnitExists("target") or targetAlpha == fadeInAlpha then
         if TargetFrame then self:FadeFrame(TargetFrame, targetAlpha) end
+    end
+
+    -- Quest tracker fades with the full UI; Show() needed since WoW may have called Hide() on it
+    if QuestWatchFrame then
+        if targetAlpha == fadeInAlpha then QuestWatchFrame:Show() end
+        self:FadeFrame(QuestWatchFrame, targetAlpha)
     end
 
     buffFrameAlpha = targetAlpha
@@ -1039,13 +1085,13 @@ end
 FadeUI:SetScript("OnEvent", function()
 
     if event == "PLAYER_LOGIN" then
+        LoadDB()
+        ApplySettings()
         this:CollectUIFrames()
         this:CollectCombatFrames()
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99"..this.name.."|r v"..this.version.." loaded.")
-        DEFAULT_CHAT_FRAME:AddMessage("Combat UI auto-shows on enemy target or combat entry.")
-        DEFAULT_CHAT_FRAME:AddMessage("Press B/Shift-B to open bags (only bags appear).")
-        DEFAULT_CHAT_FRAME:AddMessage("Bags auto-open at vendor. ToggleFullUI key: show/hide everything.")
         SetupBagTooltipAnchor()
+        CreateMinimapButton()
 
     elseif event == "PLAYER_ENTERING_WORLD" then
         -- Reposition DragonUI bag buttons to the bottom-right corner.
@@ -1060,6 +1106,12 @@ FadeUI:SetScript("OnEvent", function()
                 if tDFbagMain then
                     tDFbagMain:ClearAllPoints()
                     tDFbagMain:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -5, 5)
+                end
+
+                -- Pull action bar down slightly from DragonFlight default (y=15)
+                if MainMenuBar then
+                    MainMenuBar:ClearAllPoints()
+                    MainMenuBar:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 5)
                 end
 
                 -- Move player DEBUFF icons (curses, poisons, etc.) to just below the minimap.
@@ -1116,7 +1168,7 @@ FadeUI:SetScript("OnEvent", function()
     elseif event == "GOSSIP_SHOW" or event == "QUEST_GREETING"
         or event == "QUEST_DETAIL" or event == "QUEST_PROGRESS" or event == "QUEST_COMPLETE" then
         -- NPC dialog opened: fade out if full UI or combat UI is currently showing.
-        if uiVisible or combatUIActive then
+        if DB.autoFadeOnDialog and (uiVisible or combatUIActive) then
             dialogAutoHid = true
             dialogWasFullUI = uiVisible
             -- Cancel any pending combat-end timer so it doesn't interfere mid-dialog.
@@ -1143,7 +1195,7 @@ FadeUI:SetScript("OnEvent", function()
     elseif event == "MERCHANT_SHOW" then
         merchantOpen = true
         -- Fade out UI for immersion, same as NPC dialog
-        if uiVisible or combatUIActive then
+        if DB.autoFadeOnVendor and (uiVisible or combatUIActive) then
             dialogAutoHid = true
             dialogWasFullUI = uiVisible
             if combatEndTimer then
@@ -1170,7 +1222,7 @@ FadeUI:SetScript("OnEvent", function()
         end
 
     elseif event == "BANKFRAME_OPENED" or event == "AUCTION_HOUSE_SHOW" then
-        if uiVisible or combatUIActive then
+        if DB.autoFadeOnVendor and (uiVisible or combatUIActive) then
             dialogAutoHid = true
             dialogWasFullUI = uiVisible
             if combatEndTimer then
@@ -1281,9 +1333,163 @@ SlashCmdList["FADEUI"] = function(msg)
         FadeUI:ToggleUI()
     elseif msg == "minimap" then
         FadeUI:ToggleMinimap()
+    elseif msg == "settings" then
+        ImmersiveUI_ToggleSettings()
     else
         DEFAULT_CHAT_FRAME:AddMessage("FadeUI commands:")
         DEFAULT_CHAT_FRAME:AddMessage("/fadeui or /fadeui toggle - Toggle all UI elements")
-        DEFAULT_CHAT_FRAME:AddMessage("/fadeui minimap - Toggle minimap (auto-hides after "..minimapAutoHideTime.."s)")
+        DEFAULT_CHAT_FRAME:AddMessage("/fadeui minimap - Toggle minimap")
+        DEFAULT_CHAT_FRAME:AddMessage("/fadeui settings - Open settings panel")
     end
+end
+
+-- ============================================================
+-- Settings panel
+-- ============================================================
+local settingsPanel = nil
+
+local function RebuildCombatFrames()
+    CombatFrames = {}
+    FadeUI:CollectCombatFrames()
+end
+
+local function CreateSettingsPanel()
+    local panel = CreateFrame("Frame", "ImmersiveUISettingsPanel", UIParent)
+    panel:SetWidth(300)
+    panel:SetHeight(310)
+    panel:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    panel:SetFrameStrata("DIALOG")
+    panel:SetMovable(true)
+    panel:EnableMouse(true)
+    panel:RegisterForDrag("LeftButton")
+    panel:SetScript("OnDragStart", function() this:StartMoving() end)
+    panel:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
+    panel:Hide()
+
+    panel:SetBackdrop({
+        bgFile   = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true, tileSize = 32, edgeSize = 32,
+        insets = { left = 11, right = 12, top = 12, bottom = 11 }
+    })
+
+    -- Title
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", panel, "TOP", 0, -16)
+    title:SetText("Immersive UI  |cff33ff99v"..FadeUI.version.."|r")
+
+    -- Close button
+    local closeBtn = CreateFrame("Button", "ImmersiveUICloseBtn", panel, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -3, -3)
+    closeBtn:SetScript("OnClick", function() panel:Hide() end)
+
+    -- Helpers
+    local function AddHeader(text, yOff)
+        local fs = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        fs:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -yOff)
+        fs:SetText("|cffffcc00"..text.."|r")
+    end
+
+    local function AddCheckbox(label, yOff, key, onChange)
+        local cb = CreateFrame("CheckButton", "ImmersiveUICB_"..key, panel, "UICheckButtonTemplate")
+        cb:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -yOff)
+        cb:SetWidth(20); cb:SetHeight(20)
+        local lbl = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        lbl:SetPoint("LEFT", cb, "RIGHT", 2, 0)
+        lbl:SetText(label)
+        cb:SetChecked(DB[key])
+        cb:SetScript("OnClick", function()
+            DB[key] = (this:GetChecked() == 1)
+            if onChange then onChange() end
+        end)
+    end
+
+    local function AddSlider(label, yOff, key, minVal, maxVal, step, fmt)
+        local s = CreateFrame("Slider", "ImmersiveUISlider_"..key, panel, "OptionsSliderTemplate")
+        s:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, -yOff)
+        s:SetWidth(260)
+        s:SetMinMaxValues(minVal, maxVal)
+        s:SetValueStep(step)
+        s:SetValue(DB[key])
+        getglobal("ImmersiveUISlider_"..key.."Low"):SetText(string.format(fmt, minVal))
+        getglobal("ImmersiveUISlider_"..key.."High"):SetText(string.format(fmt, maxVal))
+        getglobal("ImmersiveUISlider_"..key.."Text"):SetText(label..": "..string.format(fmt, DB[key]))
+        s:SetScript("OnValueChanged", function()
+            local v = this:GetValue()
+            DB[key] = v
+            getglobal("ImmersiveUISlider_"..key.."Text"):SetText(label..": "..string.format(fmt, v))
+            ApplySettings()
+        end)
+    end
+
+    -- Layout (yOff = distance from top of panel)
+    AddHeader("Combat Display", 40)
+    AddCheckbox("Show quest tracker during combat", 58, "combatShowQuestTracker", RebuildCombatFrames)
+
+    AddHeader("Auto-Fade Triggers", 92)
+    AddCheckbox("Auto-fade during NPC dialog / quests", 110, "autoFadeOnDialog", nil)
+    AddCheckbox("Auto-fade at vendor / banker / AH",    133, "autoFadeOnVendor",  nil)
+
+    AddHeader("Timing", 167)
+    AddSlider("Fade speed",          185, "fadeSpeed",        0.1, 2.0, 0.1, "%.1fs")
+    AddSlider("Post-combat delay",   228, "combatFadeDelay",  1,   30,  1,   "%.0fs")
+    AddSlider("Minimap hide delay",  271, "minimapHideDelay", 5,   60,  5,   "%.0fs")
+
+    return panel
+end
+
+function ImmersiveUI_ToggleSettings()
+    if not settingsPanel then
+        settingsPanel = CreateSettingsPanel()
+    end
+    if settingsPanel:IsVisible() then
+        settingsPanel:Hide()
+    else
+        -- Refresh checkboxes in case DB was changed externally
+        for _, key in ipairs({"combatShowQuestTracker","autoFadeOnDialog","autoFadeOnVendor"}) do
+            local cb = getglobal("ImmersiveUICB_"..key)
+            if cb then cb:SetChecked(DB[key]) end
+        end
+        settingsPanel:Show()
+    end
+end
+
+-- ============================================================
+-- Minimap button
+-- ============================================================
+function CreateMinimapButton()
+    local btn = CreateFrame("Frame", "ImmersiveUIMinimapButton", UIParent)
+    btn:SetWidth(22)
+    btn:SetHeight(22)
+    btn:SetFrameStrata("MEDIUM")
+    btn:SetFrameLevel(8)
+
+    -- Position just outside the minimap at the bottom-left angle
+    local angle = math.rad(220)
+    local radius = 80
+    btn:SetPoint("CENTER", Minimap, "CENTER",
+        math.cos(angle) * radius, math.sin(angle) * radius)
+
+    local icon = btn:CreateTexture(nil, "BACKGROUND")
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01")
+    icon:SetAllPoints()
+
+    local border = btn:CreateTexture(nil, "OVERLAY")
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    border:SetWidth(54); border:SetHeight(54)
+    border:SetPoint("CENTER", btn, "CENTER", 0, 0)
+
+    btn:EnableMouse(true)
+    btn:SetScript("OnMouseDown", function()
+        if arg1 == "LeftButton" then
+            ImmersiveUI_ToggleSettings()
+        end
+    end)
+    btn:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(this, "ANCHOR_LEFT")
+        GameTooltip:AddLine("Immersive UI Settings")
+        GameTooltip:AddLine("|cffaaaaaa/fadeui settings|r", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
