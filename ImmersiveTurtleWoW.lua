@@ -78,7 +78,6 @@ FadeUI:RegisterEvent("QUEST_PROGRESS")         -- Quest turn-in view
 FadeUI:RegisterEvent("QUEST_COMPLETE")         -- Quest reward view
 FadeUI:RegisterEvent("QUEST_FINISHED")         -- Quest frame closed
 FadeUI:RegisterEvent("PLAYER_ENTERING_WORLD")  -- For bag repositioning
-FadeUI:RegisterEvent("UNIT_PET")               -- Pet summoned/dismissed
 
 -- ============================================================
 -- Helper: is the current target hostile?
@@ -363,12 +362,12 @@ function FadeUI:AddDragonUISupport()
             local region = regions[i]
             if region and region.SetAlpha then table.insert(UIFrames, region) end
         end
-    end
-
-    -- 4. Force-hide original Blizzard XP bar
-    if MainMenuExpBar then
-        MainMenuExpBar:SetAlpha(0)
-        MainMenuExpBar:Hide()
+        -- 4. Hide the original Blizzard XP bar only when DragonFlight's XP bar
+        --    is present; without DragonFlight the standard bar should stay visible.
+        if MainMenuExpBar then
+            MainMenuExpBar:SetAlpha(0)
+            MainMenuExpBar:Hide()
+        end
     end
 
     -- 5. Generic Dragonflight texture scan.
@@ -626,11 +625,6 @@ function FadeUI:CollectUIFrames()
     self:StartBuffUpdateTimer()
     self:UpdateBuffFrames()
 
-    -- Keep original XP bar hidden
-    if MainMenuExpBar then
-        MainMenuExpBar:SetAlpha(0)
-        MainMenuExpBar:Hide()
-    end
 end
 
 -- ============================================================
@@ -675,8 +669,8 @@ end
 function FadeUI:FadeFrame(frame, targetAlpha)
     if not frame then return end
 
-    -- Keep original XP bar permanently hidden
-    if frame == MainMenuExpBar then
+    -- Keep original XP bar hidden only when DragonFlight's XP bar is present
+    if frame == MainMenuExpBar and getglobal("tDFxpbar") then
         frame:SetAlpha(0)
         frame:Hide()
         return
@@ -747,12 +741,6 @@ function FadeUI:ShowCombatUI()
     buffFrameAlpha = fadeInAlpha
     self:UpdateBuffFrames()
 
-    -- XP bar stays hidden
-    if MainMenuExpBar then
-        MainMenuExpBar:SetAlpha(0)
-        MainMenuExpBar:Hide()
-    end
-
     -- Bag icons must stay hidden during combat
     local bagNames = {"tDFbagMain","tDFbag1","tDFbag2","tDFbag3","tDFbag4","tDFbagKeys","tDFbagArrow","tDFbagFreeSlots"}
     for _, n in ipairs(bagNames) do
@@ -797,12 +785,6 @@ function FadeUI:FadeAllUI(targetAlpha)
         self:ShowMinimap()
     else
         self:HideMinimap()
-    end
-
-    -- Keep original XP bar hidden
-    if MainMenuExpBar then
-        MainMenuExpBar:SetAlpha(0)
-        MainMenuExpBar:Hide()
     end
 
     -- Target frame
@@ -1063,10 +1045,6 @@ FadeUI:SetScript("OnEvent", function()
         DEFAULT_CHAT_FRAME:AddMessage("Combat UI auto-shows on enemy target or combat entry.")
         DEFAULT_CHAT_FRAME:AddMessage("Press B/Shift-B to open bags (only bags appear).")
         DEFAULT_CHAT_FRAME:AddMessage("Bags auto-open at vendor. ToggleFullUI key: show/hide everything.")
-        if MainMenuExpBar then
-            MainMenuExpBar:SetAlpha(0)
-            MainMenuExpBar:Hide()
-        end
         SetupBagTooltipAnchor()
 
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -1100,37 +1078,6 @@ FadeUI:SetScript("OnEvent", function()
                     DebuffButton1:SetPoint("TOPRIGHT", MinimapCluster, "BOTTOMRIGHT", 0, -5)
                 end
 
-                -- Position pet frame to the right of the player frame.
-                if PetFrame and PlayerFrame then
-                    PetFrame:ClearAllPoints()
-                    PetFrame:SetPoint("TOPLEFT", PlayerFrame, "TOPRIGHT", 5, -20)
-                end
-
-                this:SetScript("OnUpdate", nil)
-            end
-        end)
-
-    elseif event == "UNIT_PET" and arg1 == "player" then
-        -- Pet was summoned or dismissed. The game repositions PetFrame to its
-        -- default location (below PlayerFrame) and also pushes MainMenuBar upward
-        -- to make room for PetActionBarFrame. Use a short delay so the game
-        -- finishes its own repositioning before we override it.
-        local petTimer = CreateFrame("Frame")
-        petTimer.elapsed = 0
-        petTimer:SetScript("OnUpdate", function()
-            this.elapsed = this.elapsed + arg1
-            if this.elapsed > 0.1 then
-                -- Keep pet frame to the right of player frame
-                if PetFrame and PlayerFrame then
-                    PetFrame:ClearAllPoints()
-                    PetFrame:SetPoint("TOPLEFT", PlayerFrame, "TOPRIGHT", 5, -20)
-                end
-                -- The game pushes MainMenuBar up when pet bar appears.
-                -- DragonFlight keeps it at y=13 (no XP bar), so restore that.
-                if MainMenuBar then
-                    MainMenuBar:ClearAllPoints()
-                    MainMenuBar:SetPoint("BOTTOM", WorldFrame, "BOTTOM", 0, 15)
-                end
                 this:SetScript("OnUpdate", nil)
             end
         end)
