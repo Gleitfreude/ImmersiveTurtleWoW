@@ -66,6 +66,10 @@ FadeUI:RegisterEvent("PLAYER_TARGET_CHANGED")  -- Target changed
 FadeUI:RegisterEvent("UNIT_AURA")              -- Buff changes
 FadeUI:RegisterEvent("MERCHANT_SHOW")          -- Vendor window opened
 FadeUI:RegisterEvent("MERCHANT_CLOSED")        -- Vendor window closed
+FadeUI:RegisterEvent("BANKFRAME_OPENED")       -- Banker window opened
+FadeUI:RegisterEvent("BANKFRAME_CLOSED")       -- Banker window closed
+FadeUI:RegisterEvent("AUCTION_HOUSE_SHOW")     -- Auctioneer window opened
+FadeUI:RegisterEvent("AUCTION_HOUSE_CLOSED")   -- Auctioneer window closed
 FadeUI:RegisterEvent("GOSSIP_SHOW")            -- NPC dialog opened
 FadeUI:RegisterEvent("GOSSIP_CLOSED")          -- NPC dialog closed
 FadeUI:RegisterEvent("QUEST_GREETING")         -- Quest greeting dialog
@@ -1210,6 +1214,26 @@ FadeUI:SetScript("OnEvent", function()
             this:CloseMerchantBags()
         end
         merchantOpen = false
+        if dialogAutoHid then
+            dialogAutoHid = false
+            if dialogWasFullUI then
+                this:FadeAllUI(fadeInAlpha)
+            end
+            dialogWasFullUI = false
+        end
+
+    elseif event == "BANKFRAME_OPENED" or event == "AUCTION_HOUSE_SHOW" then
+        if uiVisible or combatUIActive then
+            dialogAutoHid = true
+            dialogWasFullUI = uiVisible
+            if combatEndTimer then
+                combatEndTimer:SetScript("OnUpdate", nil)
+                combatEndTimer = nil
+            end
+            this:FadeAllUI(fadeOutAlpha)
+        end
+
+    elseif event == "BANKFRAME_CLOSED" or event == "AUCTION_HOUSE_CLOSED" then
         if dialogAutoHid then
             dialogAutoHid = false
             if dialogWasFullUI then
