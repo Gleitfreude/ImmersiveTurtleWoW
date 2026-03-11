@@ -664,6 +664,7 @@ function FadeUI:CollectCombatFrames()
     if PetActionBarFrame then table.insert(CombatFrames, PetActionBarFrame) end
     if ShapeshiftBarFrame then table.insert(CombatFrames, ShapeshiftBarFrame) end
     if BonusActionBarFrame then table.insert(CombatFrames, BonusActionBarFrame) end
+    if QuestWatchFrame then table.insert(CombatFrames, QuestWatchFrame) end
 end
 
 -- ============================================================
