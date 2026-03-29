@@ -469,36 +469,50 @@ end
 -- Minimap show/hide helpers (unchanged from v1.0)
 -- ============================================================
 function FadeUI:HideMinimap()
+    -- Save visibility states before fading
     for _, frameName in ipairs(MarkerElements) do
         local frame = getglobal(frameName)
         if frame then markerElementsVisible[frameName] = frame:IsVisible() end
     end
+    -- Fade the minimap itself and POI markers (dots, quest objectives)
     for _, frameName in ipairs(MarkerElements) do
         local frame = getglobal(frameName)
-        if frame then frame:Hide() end
+        if frame then self:FadeFrame(frame, fadeOutAlpha) end
     end
-    if Minimap and Minimap.Hide then Minimap:Hide() end
+    -- Start fade animations on everything else (don't hide yet)
     for _, frameName in ipairs(MinimapFadeFrames) do
         local frame = getglobal(frameName)
         if frame then self:FadeFrame(frame, fadeOutAlpha) end
     end
-    if getglobal("MyCustomMinimap") then
-        getglobal("MyCustomMinimap"):SetAlpha(fadeOutAlpha)
+    local dragonFrames = {"MyCustomMinimap", "MyActualMinimap", "BorderFrameForZoneText"}
+    for _, frameName in ipairs(dragonFrames) do
+        local frame = getglobal(frameName)
+        if frame then self:FadeFrame(frame, fadeOutAlpha) end
     end
-    if getglobal("MyActualMinimap") then
-        getglobal("MyActualMinimap"):SetAlpha(fadeOutAlpha)
-    end
-    if getglobal("BorderFrameForZoneText") then
-        local bzf = getglobal("BorderFrameForZoneText")
-        self:FadeFrame(bzf, fadeOutAlpha)
-        bzf:Hide()
-    end
-    if GameTimeFrame then self:FadeFrame(GameTimeFrame, fadeOutAlpha); GameTimeFrame:Hide() end
+    if GameTimeFrame then self:FadeFrame(GameTimeFrame, fadeOutAlpha) end
+    if MinimapClock then self:FadeFrame(MinimapClock, fadeOutAlpha) end
     local chatButtons = {"ChatFrameMenuButton","ChatFrameUpButton","ChatFrameDownButton","ChatFrameBottomButton"}
     for _, n in ipairs(chatButtons) do
         local b = getglobal(n)
         if b then self:FadeFrame(b, fadeOutAlpha) end
     end
+    -- Hide elements AFTER fade animation completes
+    local hideTimer = CreateFrame("Frame")
+    hideTimer.elapsed = 0
+    hideTimer:SetScript("OnUpdate", function()
+        this.elapsed = this.elapsed + arg1
+        if this.elapsed >= fadeSpeed + 0.05 then
+            for _, frameName in ipairs(MarkerElements) do
+                local frame = getglobal(frameName)
+                if frame then frame:Hide() end
+            end
+            if Minimap and Minimap.Hide then Minimap:Hide() end
+            if getglobal("BorderFrameForZoneText") then getglobal("BorderFrameForZoneText"):Hide() end
+            if GameTimeFrame then GameTimeFrame:Hide() end
+            if MinimapClock then MinimapClock:Hide() end
+            this:SetScript("OnUpdate", nil)
+        end
+    end)
 end
 
 function FadeUI:ShowMinimap()
@@ -523,6 +537,7 @@ function FadeUI:ShowMinimap()
         self:FadeFrame(bzf, fadeInAlpha)
     end
     if GameTimeFrame then self:FadeFrame(GameTimeFrame, fadeInAlpha); GameTimeFrame:Show() end
+    if MinimapClock then self:FadeFrame(MinimapClock, fadeInAlpha); MinimapClock:Show() end
     local chatButtons = {"ChatFrameMenuButton","ChatFrameUpButton","ChatFrameDownButton","ChatFrameBottomButton"}
     for _, n in ipairs(chatButtons) do
         local b = getglobal(n)
@@ -876,6 +891,7 @@ function FadeUI:FadeMinimap(targetAlpha)
             if f then f:Show() end
         end
         if GameTimeFrame then GameTimeFrame:Show() end
+        if MinimapClock then MinimapClock:Show() end
         if getglobal("BorderFrameForZoneText") then getglobal("BorderFrameForZoneText"):Show() end
         for _, frameName in ipairs(MinimapFadeFrames) do
             local f = getglobal(frameName)
@@ -892,6 +908,7 @@ function FadeUI:FadeMinimap(targetAlpha)
     end
 
     if GameTimeFrame then self:FadeFrame(GameTimeFrame, targetAlpha) end
+    if MinimapClock then self:FadeFrame(MinimapClock, targetAlpha) end
 
     local chatButtons = {"ChatFrameMenuButton","ChatFrameUpButton","ChatFrameDownButton","ChatFrameBottomButton"}
     for _, n in ipairs(chatButtons) do
@@ -916,6 +933,7 @@ function FadeUI:FadeMinimap(targetAlpha)
                     if f then f:Hide() end
                 end
                 if GameTimeFrame then GameTimeFrame:Hide() end
+                if MinimapClock then MinimapClock:Hide() end
                 this:SetScript("OnUpdate", nil)
             end
         end)
