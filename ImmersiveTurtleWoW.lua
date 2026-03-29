@@ -20,6 +20,7 @@ local DB
 
 local DB_DEFAULTS = {
     combatShowQuestTracker = true,   -- show quest tracker during combat
+    combatShowMultiBars    = true,   -- show extra action bars during combat
     autoFadeOnDialog       = true,   -- auto-fade when NPC dialog/quest opens
     autoFadeOnVendor       = true,   -- auto-fade at vendor / banker / AH
     fadeSpeed              = 0.5,    -- fade animation duration (seconds)

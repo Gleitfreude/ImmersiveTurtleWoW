@@ -1,7 +1,7 @@
 ## Interface: 11200
 ## Title: Immersive Turtle WoW
-## Notes: Versteckt das UI für ein immersiveres Erlebnis
-## Author: DeinName
+## Notes: Smart UI fading for a cleaner, more immersive experience
+## Author: Gleitfreude
 ## Version: 1.2
 ## SavedVariables: ImmersiveTurtleWoW_DB
 
